@@ -27,7 +27,7 @@ class Widget:
         self._container = container
 
         if self.native:
-            self._container.native.addSubview_(self.native)
+            self._container.native.addView(self.native)
 
         for child in self.interface.children:
             child._impl.container = container

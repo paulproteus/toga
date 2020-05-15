@@ -9,12 +9,38 @@ from ..libs.android_widgets import (
 from .base import Widget
 
 
+class TogaTextWatcher(TextWatcher):
+    def __init__(self, text_input_interface):
+        super().__init__()
+        self.interface = text_input_interface
+
+    def beforeTextChanged(self, _charSequence, _i, _i1, _i2):
+        pass
+
+    def afterTextChanged(self, _editable):
+        # Update Toga interface value, then call user callback if any.
+        new_value = self.interface._impl.native.getText().toString()
+        old_value = self.interface.value
+
+        # In case we get fired twice with the same value, succeed vacuously.
+        if new_value == old_value:
+            return
+
+        self.interface.value = new_value
+        if self.interface.on_change:
+            self.interface.on_change(widget=self.interface)
+
+    def onTextChanged(self, _charSequence, _i, _i1, _i2):
+        pass
+
+
 class TextInput(Widget):
     def create(self):
         self.native = EditText(self._native_activity)
+        self.native.addTextChangedListener(TogaTextWatcher(self.interface))
 
     def set_readonly(self, value):
-        self.native.setEnabled(not value)
+        self.native.setFocusable(not value)
 
     def set_placeholder(self, value):
         # Android EditText's setHint() requires a Python string.
@@ -32,9 +58,6 @@ class TextInput(Widget):
 
     def set_font(self, value):
         self.interface.factory.not_implemented("TextInput.set_font()")
-
-    def get_value(self):
-        return self.native.getText().toString()
 
     def set_value(self, value):
         self.native.setText(value)

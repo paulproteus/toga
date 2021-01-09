@@ -12,6 +12,7 @@ class ExampleDetailedListApp(toga.App):
     def on_select_handler(self, widget, row, **kwargs):
         self.label.text = 'Bee is {} in {}'.format(row.title, row.subtitle) \
             if row is not None else 'No row selected'
+        print(f"asheesh {self.label.text}")
 
     async def on_refresh_handler(self, widget, **kwargs):
         self.label.text = 'Refreshing list...'
@@ -36,6 +37,7 @@ class ExampleDetailedListApp(toga.App):
         self.dl.scroll_to_row(index)
 
     def remove_handler(self, widget, **kwargs):
+        print(f"hi asheesh {self.dl.selection}")
         if self.dl.selection:
             self.dl.data.remove(self.dl.selection)
 

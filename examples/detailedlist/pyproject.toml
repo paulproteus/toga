@@ -35,10 +35,15 @@ requires = [
 # Mobile deployments
 [tool.briefcase.app.detailedlist.iOS]
 requires = [
-    'toga-iOS',
+'../../src/core',
+'../../src/ios',
 ]
 
 [tool.briefcase.app.detailedlist.android]
 requires = [
-    'toga-android',
+'/Users/paulproteus/projects/beeware/rubicon-java',
+'../../src/core',
+'../../src/android',
 ]
+# template = "/Users/paulproteus/projects/beeware/briefcase-android-gradle-template"
+

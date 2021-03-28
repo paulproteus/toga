@@ -1,6 +1,6 @@
 from travertino.size import at_least
 
-from rubicon.java.jni import java
+from rubicon.java.jni import cast, java
 
 from ..libs import android_widgets
 from .base import Widget
@@ -17,6 +17,153 @@ class DetailedListOnClickListener(android_widgets.OnClickListener):
             self._impl.interface.on_select(widget=self._impl.interface, row=self._row_number)
 
 
+class _SwipeDismissTouchListener(android_widgets.View__OnTouchListener):
+    # Inspired directly by https://android.googlesource.com/platform/frameworks/base/+/ca6234e084a71e0c968cff404620298bcd971fcc/core/java/com/android/internal/widget/SwipeDismissLayout.java
+    # which is copyright (C) 2014 The Android Open Source Project, Licensed under the Apache License, Version 2.0
+
+    # Cached ViewConfiguration and system-wide constant values
+    mSlop = 0
+    mMinFlingVelocity = 0
+    mMaxFlingVelocity = 0
+    mAnimationTime = 0
+
+    mView = None
+    mCallbacks = None
+    mViewWidth = 1.0  # 1 and not 0 to prevent dividing by zero
+
+    # Transient properties
+    mDownX = 0
+    mDownY = 0
+    mSwiping = False
+    mSwipingSlop = 0
+    mVelocityTracker = None
+    mTranslationX = 0.0
+
+    def __init__(self, view, on_dismiss_callback):
+        super().__init__()
+        vc = android_widgets.ViewConfiguration.get(view.getContext())
+        self.mSlop = vc.getScaledTouchSlop()
+        self.mMinFlingVelocity = vc.getScaledMinimumFlingVelocity() * 16
+        self.mMaxFlingVelocity = vc.getScaledMaximumFlingVelocity()
+        self.mAnimationTime = view.getContext().getResources().getInteger(
+                android_widgets.R__integer.config_shortAnimTime)
+        self.mView = view
+        self._on_dismiss_callback = on_dismiss_callback
+
+    def onTouch(self, view, motionEvent):
+        # offset because the view is translated during swipe
+        motionEvent.offsetLocation(self.mTranslationX, 0.0)
+
+        if (self.mViewWidth < 2):
+            self.mViewWidth = float(self.mView.getWidth())
+
+        action_masked = motionEvent.getActionMasked()
+        if action_masked == android_widgets.MotionEvent.ACTION_DOWN:
+            # TODO: ensure this is a finger, and set a flag
+            self.mDownX = motionEvent.getRawX()
+            self.mDownY = motionEvent.getRawY()
+            self.mVelocityTracker = android_widgets.VelocityTracker(
+                __jni__=java.NewGlobalRef(android_widgets.VelocityTracker.obtain()))
+            self.mVelocityTracker.addMovement(motionEvent)
+            return False
+
+        if action_masked == android_widgets.MotionEvent.ACTION_UP:
+            if self.mVelocityTracker is not None:
+                deltaX = motionEvent.getRawX() - self.mDownX
+                self.mVelocityTracker.addMovement(motionEvent)
+                self.mVelocityTracker.computeCurrentVelocity(1000)
+                velocityX = self.mVelocityTracker.getXVelocity()
+                absVelocityX = abs(velocityX)
+                absVelocityY = abs(self.mVelocityTracker.getYVelocity())
+                dismiss = False
+                dismissRight = False
+                if abs(deltaX) > self.mViewWidth / 2 and self.mSwiping:
+                    dismissRight = deltaX > 0
+                    dismiss = True
+                elif (self.mMinFlingVelocity <= absVelocityX <= self.mMaxFlingVelocity and
+                      absVelocityY < absVelocityX and
+                      absVelocityY < absVelocityX and self.mSwiping):
+                    # dismiss only if flinging in the same direction as dragging
+                    dismissRight = self.mVelocityTracker.getXVelocity() > 0
+                    dismiss = dismissRight
+                if dismiss:
+                    self.mView.animate(
+                    ).translationX(self.mViewWidth if dismissRight else -self.mViewWidth
+                                   ).alpha(0.0
+                                           ).setDuration(self.mAnimationTime
+                                                         ) # TODO: setListener(new AnimatorListenerAdapter() { @Override public void onAnimationEnd(Animator animation) {                                    performDismiss();                                 }
+                    # PYTHON HACK, DELETE THE NEXT LINE SOON
+                    self._performDismiss()
+                elif self.mSwiping:
+                    self.mView.animate(
+                    ).translationX(0.0
+                                   ).alpha(1.0
+                                           ).setDuration(self.mAnimationTime) # .setListener(null)
+                self.mVelocityTracker.recycle()
+                self.mVelocityTracker = None
+                self.mTranslationX = 0.0
+                self.mDownX = 0
+                self.mDownY = 0
+                self.mSwiping = False
+        elif action_masked == android_widgets.MotionEvent.ACTION_CANCEL:
+            if self.mVelocityTracker is not None:
+                self.mView.animate().translationX(0.0).alpha(1.0).setDuration(self.mAnimationTime) # .setListener(null);
+                self.mVelocityTracker.recycle()
+                self.mVelocityTracker = None
+                self.mTranslationX = 0.0
+                self.mDownX = 0
+                self.mDownY = 0
+                self.mSwiping = False
+        elif action_masked == android_widgets.MotionEvent.ACTION_MOVE:
+            if self.mVelocityTracker is not None:
+                self.mVelocityTracker.addMovement(motionEvent)
+                deltaX = float(motionEvent.getRawX() - self.mDownX)
+                # Prevent a swipe to the left from moving us into swiping state.
+                if deltaX < 0 and not self.mSwiping:
+                    return True
+            deltaY = motionEvent.getRawY() - self.mDownY
+            if abs(deltaX) > self.mSlop and abs(deltaY) < abs(deltaX) / 2:
+                self.mSwiping = True
+                self.mSwipingSlop = (deltaX > 0 if self.mSlop else -self.mSlop) # TODO: wrong, just like the other ternary
+                self.mView.getParent().requestDisallowInterceptTouchEvent(True)
+
+            if self.mSwiping:
+                self.mTranslationX = deltaX
+                self.mView.setTranslationX(float(deltaX - self.mSwipingSlop))
+        return False
+
+    def _performDismiss(self):
+        # Animate the dismissed view to zero-height and then fire the dismiss callback.
+        # This triggers layout on each animation frame; in the future we may want to do something
+        # smarter and more performant.
+        layout_params = self.mView.getLayoutParams()
+        originalHeight = self.mView.getHeight()
+
+        animator = android_widgets.ValueAnimator.ofInt([originalHeight, 1]).setDuration(self.mAnimationTime)
+        self._on_dismiss_callback()
+        _unused = '''animator.addListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                mCallbacks.run();
+                // Reset view presentation
+                mView.setAlpha(1f);
+                mView.setTranslationX(0);
+                lp.height = originalHeight;
+                mView.setLayoutParams(lp);
+            }
+        });'''
+
+        _unused2 = '''animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator valueAnimator) {
+                lp.height = (Integer) valueAnimator.getAnimatedValue();
+                mView.setLayoutParams(lp);
+            }
+        });'''
+
+        animator.start()
+
+
 class OnRefreshListener(android_widgets.SwipeRefreshLayout__OnRefreshListener):
     def __init__(self, interface):
         super().__init__()
@@ -25,6 +172,9 @@ class OnRefreshListener(android_widgets.SwipeRefreshLayout__OnRefreshListener):
     def onRefresh(self):
         if self._interface.on_refresh:
             self._interface.on_refresh(self._interface)
+
+    def __del__(self):
+        print("lol would delete it but i cant")
 
 
 class DetailedList(Widget):
@@ -66,9 +216,40 @@ class DetailedList(Widget):
             self._make_row(dismissable_container, i)
 
     def _make_row(self, container, i):
+        # Create a frame such that the background is behind the foreground.
+        entire_row = android_widgets.FrameLayout(self._native_activity)
+        container.addView(entire_row)
+
+        # Create a background, so that when a user swipes the row away, they see the word "Delete".
+        row_background = android_widgets.LinearLayout(self._native_activity)
+        entire_row.addView(row_background)
+        # <orig>
+        row_background.setBackgroundColor(0xFFFF2222)  # Transparent pink
+        # </orig>
+        background_text = android_widgets.TextView(self._native_activity)
+        background_text.setText("Delete")
+        background_text.setTextSize(20.0)
+        background_text_layout_params = android_widgets.LinearLayout__LayoutParams(
+            android_widgets.LinearLayout__LayoutParams.MATCH_PARENT,
+            android_widgets.LinearLayout__LayoutParams.MATCH_PARENT,
+        )
+        background_text_layout_params.setMarginStart(15)
+        background_text.setGravity(android_widgets.Gravity.CENTER_VERTICAL)
+        row_background.addView(background_text, background_text_layout_params)
+
         # Create the foreground.
         row_foreground = android_widgets.RelativeLayout(self._native_activity)
-        container.addView(row_foreground)
+        # <good>
+        row_foreground.setBackgroundColor(self._native_activity.getResources().getColor(
+            android_widgets.R__color.background_light))
+        # </good>
+        # <test>
+        #print(self.native.getResources()) # OK then.getColor(value.resourceId)
+        #primary_color_id = self._native_activity.getResources().getIdentifier("colorPrimary", "color", self._native_activity.getApplicationContext().getPackageName())
+        #primary_color = self._native_activity.getResources().getInteger(primary_color_id)
+        row_foreground.setBackgroundColor(-328966)  # Default Android app background color, specifically 0xFFFAFAFA as a signed 32-bit int
+        # </test>
+        entire_row.addView(row_foreground)
 
         # Add user-provided icon to layout.
         icon_image_view = android_widgets.ImageView(self._native_activity)
@@ -122,6 +303,7 @@ class DetailedList(Widget):
 
         # Apply an onclick listener so that clicking anywhere on the row triggers Toga's on_select(row).
         row_foreground.setOnClickListener(DetailedListOnClickListener(self, i))
+        row_foreground.setOnTouchListener(_SwipeDismissTouchListener(row_foreground, lambda *args: print(args)))
 
     def change_source(self, source):
         # If the source changes, re-build the widget.
@@ -136,19 +318,19 @@ class DetailedList(Widget):
             self._android_swipe_refresh_layout.setRefreshing(False)
 
     def insert(self, index, item):
-        # If the data changes, re-build the widget. Brutally effective.
+        # If the data changes, re-build the widget.
         self.create()
 
     def change(self, item):
-        # If the data changes, re-build the widget. Brutally effective.
+        # If the data changes, re-build the widget.
         self.create()
 
-    def remove(self, index, item):
+    def remove(self, item):
         # If the data changes, re-build the widget. Brutally effective.
         self.create()
 
     def clear(self):
-        # If the data changes, re-build the widget. Brutally effective.
+        # If the data changes, re-build the widget.
         self.create()
 
     def get_selection(self):
@@ -159,7 +341,7 @@ class DetailedList(Widget):
         pass
 
     def set_on_delete(self, handler):
-        # This widget currently does not implement event handlers for data chance.
+        # This widget currently does not implement event handlers for data change.
         self.interface.factory.not_implemented("DetailedList.set_on_delete()")
 
     def scroll_to_row(self, row):

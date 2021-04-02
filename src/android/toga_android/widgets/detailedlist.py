@@ -64,7 +64,7 @@ class DetailedList(Widget):
         scroll_view.addView(
                 row_container, row_container_params
         )
-        self._row_container = android_widgets.SwipeRefreshLayout(
+        self._row_container = android_widgets.LinearLayout(
             __jni__=java.NewGlobalRef(row_container))
 
     def _create_or_update_rows(self):

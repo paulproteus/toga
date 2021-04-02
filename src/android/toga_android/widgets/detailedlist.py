@@ -1,5 +1,7 @@
+import asyncio
 from travertino.size import at_least
 
+from rubicon.java.android_events import Handler, PythonRunnable
 from rubicon.java.jni import java
 
 from ..libs import android_widgets
@@ -28,7 +30,9 @@ class OnRefreshListener(android_widgets.SwipeRefreshLayout__OnRefreshListener):
 
 
 class DetailedList(Widget):
-    _android_swipe_refresh_layout = None
+    ROW_HEIGHT = 250
+    _swipe_refresh_layout = None
+    _scroll_view = None
     _row_container = None
 
     def create(self):
@@ -44,6 +48,8 @@ class DetailedList(Widget):
         self.native.setOrientation(android_widgets.LinearLayout.VERTICAL)
 
         scroll_view = android_widgets.ScrollView(self._native_activity)
+        self._scroll_view = android_widgets.ScrollView(
+            __jni__=java.NewGlobalRef(scroll_view))
         scroll_view_layout_params = android_widgets.LinearLayout__LayoutParams(
                 android_widgets.LinearLayout__LayoutParams.MATCH_PARENT,
                 android_widgets.LinearLayout__LayoutParams.MATCH_PARENT
@@ -51,11 +57,13 @@ class DetailedList(Widget):
         scroll_view_layout_params.gravity = android_widgets.Gravity.TOP
         swipe_refresh_wrapper = android_widgets.SwipeRefreshLayout(self._native_activity)
         swipe_refresh_wrapper.setOnRefreshListener(OnRefreshListener(self.interface))
-        self._android_swipe_refresh_layout = android_widgets.SwipeRefreshLayout(
+        self._swipe_refresh_layout = android_widgets.SwipeRefreshLayout(
             __jni__=java.NewGlobalRef(swipe_refresh_wrapper))
         swipe_refresh_wrapper.addView(scroll_view)
         self.native.addView(swipe_refresh_wrapper, scroll_view_layout_params)
         row_container = android_widgets.LinearLayout(self._native_activity)
+        self._row_container = android_widgets.LinearLayout(
+            __jni__=java.NewGlobalRef(row_container))
         row_container.setOrientation(android_widgets.LinearLayout.VERTICAL)
         row_container_params = android_widgets.LinearLayout__LayoutParams(
                 android_widgets.LinearLayout__LayoutParams.MATCH_PARENT,
@@ -64,8 +72,6 @@ class DetailedList(Widget):
         scroll_view.addView(
                 row_container, row_container_params
         )
-        self._row_container = android_widgets.LinearLayout(
-            __jni__=java.NewGlobalRef(row_container))
 
     def _create_or_update_rows(self):
         existing_row_count = self._row_container.getChildCount()
@@ -92,7 +98,7 @@ class DetailedList(Widget):
             android_widgets.RelativeLayout__LayoutParams.WRAP_CONTENT)
         icon_layout_params.width = 150
         icon_layout_params.setMargins(25, 0, 25, 0)
-        icon_layout_params.height = 250
+        icon_layout_params.height = self.ROW_HEIGHT
         icon_image_view.setScaleType(android_widgets.ImageView__ScaleType.FIT_CENTER)
         row_foreground.addView(icon_image_view, icon_layout_params)
 
@@ -101,7 +107,7 @@ class DetailedList(Widget):
         text_container_params = android_widgets.RelativeLayout__LayoutParams(
                 android_widgets.RelativeLayout__LayoutParams.WRAP_CONTENT,
                 android_widgets.RelativeLayout__LayoutParams.WRAP_CONTENT)
-        text_container_params.height = 250
+        text_container_params.height = self.ROW_HEIGHT
         text_container_params.setMargins(25 + 25 + 150, 0, 0, 0)
         row_foreground.addView(text_container, text_container_params)
         text_container.setOrientation(android_widgets.LinearLayout.VERTICAL)
@@ -142,8 +148,8 @@ class DetailedList(Widget):
         pass
 
     def after_on_refresh(self):
-        if self._android_swipe_refresh_layout:
-            self._android_swipe_refresh_layout.setRefreshing(False)
+        if self._swipe_refresh_layout:
+            self._swipe_refresh_layout.setRefreshing(False)
 
     def insert(self, index, item):
         # If the data changes, re-build the widget. Brutally effective.
@@ -173,8 +179,21 @@ class DetailedList(Widget):
         self.interface.factory.not_implemented("DetailedList.set_on_delete()")
 
     def scroll_to_row(self, row):
-        # This widget cannot currently scroll to a specific row.
-        self.interface.factory.not_implemented("DetailedList.scroll_to_row()")
+        # runnable omg
+        #def _scroll():
+        #    print("...done")
+        #    self._scroll_view.scrollTo(0, self.ROW_HEIGHT * (row + 1))
+        #print("enqueing...")
+        #asyncio.get_running_loop().call_later(0.01, _scroll)
+        Handler().post(PythonRunnable(lambda: self._scroll_view.scrollTo(0, self.ROW_HEIGHT * (row + 1))))
+
+
+        #print("row = " + str(row))
+        #child = self._row_container.getChildAt(row)
+        #print("child = " + str(child))
+        #child_rectangle = android_widgets.Rect()
+        #child.getHitRect(child_rectangle)
+        #self._scroll_view.requestChildRectangleOnScreen(self._row_container, child_rectangle, False)
 
     def rehint(self):
         # Android can crash when rendering some widgets until they have their layout params set. Guard for that case.

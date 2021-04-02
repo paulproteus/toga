@@ -12,14 +12,20 @@ class ExampleDetailedListApp(toga.App):
     def on_select_handler(self, widget, row, **kwargs):
         self.label.text = 'Bee is {} in {}'.format(row.title, row.subtitle) \
             if row is not None else 'No row selected'
+        self.label.text = 'Scrolling to row 20...'
+        self.dl.scroll_to_row(20)
+        self.label.text = 'Scrolled to row 20.'
+        print("Scrolled to row 20.")
 
     async def on_refresh_handler(self, widget, **kwargs):
-        self.label.text = 'Refreshing list...'
+        self.label.text = 'Scrolling to row 20...'
         # We are using a local data source, so there's literally no reason
         # to use refresh. However, for demonstration purposes, lets pretend
         # that we're getting the data from an API, which takes 1s to respond.
         await asyncio.sleep(1)
-        self.label.text = 'List was refreshed.'
+        self.dl.scroll_to_row(20)
+        self.label.text = 'Scrolled to row 20.'
+        print("Scrolled to row 20.")
 
     def on_delete_handler(self, widget, row, **kwargs):
         self.label.text = 'Row {} is going to be deleted.'.format(row.subtitle)

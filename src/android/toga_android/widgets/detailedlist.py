@@ -29,17 +29,19 @@ class OnRefreshListener(android_widgets.SwipeRefreshLayout__OnRefreshListener):
 
 class DetailedList(Widget):
     _android_swipe_refresh_layout = None
+    _row_container = None
 
     def create(self):
         # DetailedList is not a specific widget on Android, so we build it out
         # of a few pieces.
-
         if self.native is None:
-            self.native = android_widgets.LinearLayout(self._native_activity)
-            self.native.setOrientation(android_widgets.LinearLayout.VERTICAL)
-        else:
-            # If create() is called a second time, clear the widget and regenerate it.
-            self.native.removeAllViews()
+            self._create_table()
+
+        self._create_or_update_rows()
+
+    def _create_table(self):
+        self.native = android_widgets.LinearLayout(self._native_activity)
+        self.native.setOrientation(android_widgets.LinearLayout.VERTICAL)
 
         scroll_view = android_widgets.ScrollView(self._native_activity)
         scroll_view_layout_params = android_widgets.LinearLayout__LayoutParams(
@@ -53,17 +55,21 @@ class DetailedList(Widget):
             __jni__=java.NewGlobalRef(swipe_refresh_wrapper))
         swipe_refresh_wrapper.addView(scroll_view)
         self.native.addView(swipe_refresh_wrapper, scroll_view_layout_params)
-        dismissable_container = android_widgets.LinearLayout(self._native_activity)
-        dismissable_container.setOrientation(android_widgets.LinearLayout.VERTICAL)
-        dismissable_container_params = android_widgets.LinearLayout__LayoutParams(
+        row_container = android_widgets.LinearLayout(self._native_activity)
+        row_container.setOrientation(android_widgets.LinearLayout.VERTICAL)
+        row_container_params = android_widgets.LinearLayout__LayoutParams(
                 android_widgets.LinearLayout__LayoutParams.MATCH_PARENT,
                 android_widgets.LinearLayout__LayoutParams.MATCH_PARENT
         )
         scroll_view.addView(
-                dismissable_container, dismissable_container_params
+                row_container, row_container_params
         )
+        self._row_container = android_widgets.SwipeRefreshLayout(
+            __jni__=java.NewGlobalRef(row_container))
+
+    def _create_or_update_rows(self):
         for i in range(len((self.interface.data or []))):
-            self._make_row(dismissable_container, i)
+            self._make_row(self._row_container, i)
 
     def _make_row(self, container, i):
         # Create the foreground.

@@ -68,8 +68,12 @@ class DetailedList(Widget):
             __jni__=java.NewGlobalRef(row_container))
 
     def _create_or_update_rows(self):
+        existing_row_count = self._row_container.getChildCount()
         for i in range(len((self.interface.data or []))):
-            self._make_row(self._row_container, i)
+            if i < existing_row_count:
+                print("Ignoring attempt to update pre-existing row")
+            else:
+                self._make_row(self._row_container, i)
 
     def _make_row(self, container, i):
         # Create the foreground.

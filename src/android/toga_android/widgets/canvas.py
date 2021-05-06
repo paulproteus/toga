@@ -1,3 +1,5 @@
+from rubicon.java.jni import java
+
 from ..libs import activity
 from ..libs import android_widgets
 from .base import Widget
@@ -23,6 +25,7 @@ class MicroCustomCanvasView(activity.IView):
 class Canvas(Widget):
     def create(self):
         self.native = activity.CustomView(self._native_activity.getApplicationContext())
+        self._path = android_widgets.Path(__jni__=java.NewGlobalRef(android_widgets.Path()))
         self.native.setView(MicroCustomCanvasView(self.interface))
 
         # self.native.interface = self.interface
@@ -59,7 +62,8 @@ class Canvas(Widget):
         self.interface.factory.not_implemented('Canvas.closed_path()')
 
     def move_to(self, x, y, draw_context, *args, **kwargs):
-        self.interface.factory.not_implemented('Canvas.move_to()')
+        self._path.moveTo(float(x), float(y))
+#        self.interface.factory.not_implemented('Canvas.move_to()')
 
     def line_to(self, x, y, draw_context, *args, **kwargs):
         self.interface.factory.not_implemented('Canvas.line_to()')

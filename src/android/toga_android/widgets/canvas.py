@@ -4,6 +4,7 @@ from ..libs import activity
 from ..libs import android_widgets
 from .base import Widget
 
+BIGGER = 5
 
 class MicroCustomCanvasView(activity.IView):
     def __init__(self, interface):
@@ -11,21 +12,18 @@ class MicroCustomCanvasView(activity.IView):
         super().__init__()
 
     def onDraw(self, canvas):
-        # Always draw a circle
-        paint = android_widgets.Paint()
-        paint.setColor(android_widgets.Color.BLACK)
-        paint.setAntiAlias(True)
-        paint.setStrokeWidth(5.0)
-        canvas.drawOval(0.0, 0.0, 400.0, 400.0, paint)
-
-        #if self.interface.redraw:
+        # TODO: Maybe only draw if self.interface.redraw. Does that do anything?
         self.interface._draw(self.interface._impl, draw_context=canvas)
+        print("About to drawPath")
+        canvas.drawPath(self.interface._impl._path, self.interface._impl._draw_paint)
+        print("Done with onDraw")
 
 
 class Canvas(Widget):
     def create(self):
         self.native = activity.CustomView(self._native_activity.getApplicationContext())
         self._path = android_widgets.Path(__jni__=java.NewGlobalRef(android_widgets.Path()))
+        self._draw_paint = android_widgets.Paint(__jni__=java.NewGlobalRef(android_widgets.Paint()))
         self.native.setView(MicroCustomCanvasView(self.interface))
 
         # self.native.interface = self.interface
@@ -59,14 +57,16 @@ class Canvas(Widget):
         self.interface.factory.not_implemented('Canvas.new_path()')
 
     def closed_path(self, x, y, draw_context, *args, **kwargs):
-        self.interface.factory.not_implemented('Canvas.closed_path()')
+        draw_context.drawPath(self._path, self._draw_paint)
+        # self.interface.factory.not_implemented('Canvas.closed_path()')
 
     def move_to(self, x, y, draw_context, *args, **kwargs):
-        self._path.moveTo(float(x), float(y))
+        self._path.moveTo(float(x) * BIGGER, float(y) * BIGGER)
 #        self.interface.factory.not_implemented('Canvas.move_to()')
 
     def line_to(self, x, y, draw_context, *args, **kwargs):
-        self.interface.factory.not_implemented('Canvas.line_to()')
+        self._path.lineTo(float(x) * BIGGER, float(y) * BIGGER)
+    #        self.interface.factory.not_implemented('Canvas.line_to()')
 
     # Basic shapes
 
@@ -98,8 +98,18 @@ class Canvas(Widget):
         self.interface.factory.not_implemented('Canvas.fill()')
 
     def stroke(self, color, line_width, line_dash, draw_context, *args, **kwargs):
-        print("HMM STROKE ASHEESH")
-        self.interface.factory.not_implemented('Canvas.stroke()')
+        self._draw_paint.setAntiAlias(True)
+        self._draw_paint.setStrokeWidth(float(line_width) * BIGGER)
+        self._draw_paint.setStyle(android_widgets.Paint__Style.STROKE)
+        self._draw_paint.setStrokeJoin(android_widgets.Paint__Join.ROUND)
+        self._draw_paint.setStrokeCap(android_widgets.Paint__Cap.ROUND)
+        if color is not None:
+            self.interface.factory.not_implemented("Non-black color; using black instead")
+        # Set color to black
+        self._draw_paint.setColor(android_widgets.Color.BLACK)
+
+        if line_dash is not None:
+            self.interface.factory.not_implemented("Line dash detected; ignoring")
 
     # Rehint
 

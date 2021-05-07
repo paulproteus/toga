@@ -103,13 +103,15 @@ class Canvas(Widget):
         self._draw_paint.setStyle(android_widgets.Paint__Style.STROKE)
         self._draw_paint.setStrokeJoin(android_widgets.Paint__Join.ROUND)
         self._draw_paint.setStrokeCap(android_widgets.Paint__Cap.ROUND)
-        if color is not None:
-            self.interface.factory.not_implemented("Non-black color; using black instead")
-        # Set color to black
-        self._draw_paint.setColor(android_widgets.Color.BLACK)
+        if color is None:
+            a, r, g, b = 255, 0, 0, 0
+        else:
+            a, r, g, b = round(color.a * 255), int(color.r), int(color.g), int(color.b)
+        self._draw_paint.setARGB(a, r, g, b)
 
         if line_dash is not None:
-            self.interface.factory.not_implemented("Line dash detected; ignoring")
+            self.interface.factory.not_implemented('line_dash property not yet supported')
+            # self._draw_paint.setPathEffect(android_widgets.DashPathEffect([float(d) for d in line_dash], 0))
 
     # Rehint
 

@@ -110,8 +110,7 @@ class Canvas(Widget):
         self._draw_paint.setARGB(a, r, g, b)
 
         if line_dash is not None:
-            self.interface.factory.not_implemented('line_dash property not yet supported')
-            # self._draw_paint.setPathEffect(android_widgets.DashPathEffect([float(d) for d in line_dash], 0))
+            self._draw_paint.setPathEffect(android_widgets.DashPathEffect([float(d) for d in line_dash], 0.0))
 
     # Rehint
 

@@ -6,7 +6,7 @@ AlertDialog__Builder = JavaClass("android/app/AlertDialog$Builder")
 BitmapFactory = JavaClass("android/graphics/BitmapFactory")
 Color = JavaClass("android/graphics/Color")
 CompoundButton__OnCheckedChangeListener = JavaInterface("android/widget/CompoundButton$OnCheckedChangeListener")
-DashPathEffect = JavaClass("android/graphics/PathEffect")
+DashPathEffect = JavaClass("android/graphics/DashPathEffect")
 DialogInterface__OnClickListener = JavaInterface("android/content/DialogInterface$OnClickListener")
 EditText = JavaClass("android/widget/EditText")
 Gravity = JavaClass("android/view/Gravity")
@@ -53,3 +53,5 @@ WebViewClient = JavaClass("android/webkit/WebViewClient")
 # `SpinnerAdapter`. This is required until `rubicon-java` explores the interfaces
 # implemented by a class's subclasses.
 ArrayAdapter._alternates.append(b'Landroid/widget/SpinnerAdapter;')
+
+#type.__setattr__(DashPathEffect, '_constructors', {b'([FF)V': None})

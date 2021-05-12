@@ -53,5 +53,3 @@ WebViewClient = JavaClass("android/webkit/WebViewClient")
 # `SpinnerAdapter`. This is required until `rubicon-java` explores the interfaces
 # implemented by a class's subclasses.
 ArrayAdapter._alternates.append(b'Landroid/widget/SpinnerAdapter;')
-
-#type.__setattr__(DashPathEffect, '_constructors', {b'([FF)V': None})

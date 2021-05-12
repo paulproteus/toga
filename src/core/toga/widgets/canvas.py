@@ -401,11 +401,13 @@ class Fill(Context):
         """Used by parent to draw all objects that are part of the context.
 
         """
+        print("Starting _draw")
         impl.new_path(*args, **kwargs)
         for obj in self.drawing_objects:
             kwargs["fill_color"] = self.color
             obj._draw(impl, *args, **kwargs)
         impl.fill(self.color, self.fill_rule, self.preserve, *args, **kwargs)
+        print(f"Ending _draw, self.color={self.color}")
 
     @property
     def fill_rule(self):

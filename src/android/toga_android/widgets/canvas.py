@@ -13,6 +13,8 @@ class MicroCustomCanvasView(activity.IView):
 
     def onDraw(self, canvas):
         # TODO: Maybe only draw if self.interface.redraw. Does that do anything?
+        print(repr(self.interface))
+        print('that is what self.interface is, when i want to call its _draw')
         self.interface._draw(self.interface._impl, draw_context=canvas)
         print("About to drawPath")
         # canvas.drawPath(self.interface._impl._path, self.interface._impl._draw_paint)
@@ -22,7 +24,7 @@ class MicroCustomCanvasView(activity.IView):
 class Canvas(Widget):
     def create(self):
         self.native = activity.CustomView(self._native_activity.getApplicationContext())
-        self._path = android_widgets.Path(__jni__=java.NewGlobalRef(android_widgets.Path()))
+        self._path = None # hah
         self._draw_paint = None #
         self.native.setView(MicroCustomCanvasView(self.interface))
 
@@ -54,24 +56,26 @@ class Canvas(Widget):
     # Basic paths
 
     def new_path(self, draw_context, *args, **kwargs):
+        print('hi new_path')
         self.interface.factory.not_implemented('Canvas.new_path()')
 
     def closed_path(self, x, y, draw_context, *args, **kwargs):
-        print(f"hi closed_path x={x} y={y}")
-        if self._draw_paint is None:
-            print("Skipping drawPath for now")
-        else:
-            draw_context.drawPath(self._path, self._draw_paint)
-        # TODO next line is a memory leak :)
-        self._draw_paint = android_widgets.Paint(__jni__=java.NewGlobalRef(android_widgets.Paint()))
-        # self.interface.factory.not_implemented('Canvas.closed_path()')
+        # Create Android Path
+        # Create Android Paint presumably
+        # Step 3
+        print("hi STEP 3")
+        print(f"hi closed_path x={x} y={y} (ignored)")
+        print(f"    ignored")
 
     def move_to(self, x, y, draw_context, *args, **kwargs):
         print(f"hi moving to x={x} y={y}")
+        print("hi STEP 1")
+        self._path = android_widgets.Path()
         self._path.moveTo(float(x) * BIGGER, float(y) * BIGGER)
 #        self.interface.factory.not_implemented('Canvas.move_to()')
 
     def line_to(self, x, y, draw_context, *args, **kwargs):
+        print("hi STEP 2")
         print(f"hi line_to x={x} y={y}")
         self._path.lineTo(float(x) * BIGGER, float(y) * BIGGER)
     #        self.interface.factory.not_implemented('Canvas.line_to()')
@@ -106,25 +110,22 @@ class Canvas(Widget):
         self.interface.factory.not_implemented('Canvas.fill()')
 
     def stroke(self, color, line_width, line_dash, draw_context, *args, **kwargs):
-        print("hi starting stroke")
-        self._draw_paint = android_widgets.Paint(__jni__=java.NewGlobalRef(android_widgets.Paint()))
+        self._draw_paint = android_widgets.Paint()
         self._draw_paint.setAntiAlias(True)
         self._draw_paint.setStrokeWidth(float(line_width) * BIGGER)
         self._draw_paint.setStyle(android_widgets.Paint__Style.STROKE)
-        self._draw_paint.setStrokeJoin(android_widgets.Paint__Join.ROUND)
-        self._draw_paint.setStrokeCap(android_widgets.Paint__Cap.ROUND)
         if color is None:
             a, r, g, b = 255, 0, 0, 0
         else:
             a, r, g, b = round(color.a * 255), int(color.r), int(color.g), int(color.b)
         self._draw_paint.setARGB(a, r, g, b)
 
-        if line_dash is None:
-            self._draw_paint.setPathEffect(android_widgets.DashPathEffect([1.0, 1.0], 0.0))
-        else:
+        if line_dash is not None:
             self._draw_paint.setPathEffect(android_widgets.DashPathEffect([float(d) for d in line_dash], 0.0))
+        draw_context.drawPath(self._path, self._draw_paint)
 
-    # Rehint
+
+# Rehint
 
     def set_on_resize(self, handler):
         self.interface.factory.not_implemented('Canvas.on_resize')
